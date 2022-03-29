@@ -1,12 +1,12 @@
 import os.path
 import logging
 from collections import OrderedDict
+from copy import deepcopy
 import torch
-
 from utils import utils_logger
 from utils import utils_image as util
-from models.IMDN import IMDN
-
+from models.rfdnfinal_arch import RFDNFINAL
+from torch.nn.parallel import DataParallel, DistributedDataParallel
 
 def main():
 
@@ -28,14 +28,29 @@ def main():
     # --------------------------------
     # load model
     # --------------------------------
-    model_path = os.path.join('model_zoo', 'imdn_x4.pth')
-    model = IMDN(in_nc=3, out_nc=3, nc=64, nb=8, upscale=4)
-    model.load_state_dict(torch.load(model_path), strict=True)
+    model_path = os.path.join('model_zoo', 'net_g_latest.pth')
+    model = RFDNFINAL(num_in_ch=3, num_feat=50, num_block=6, num_out_ch=3, upscale=4,
+                 conv='BSConvU', upsampler='pixelshuffledirect')
+    if isinstance(model, (DataParallel, DistributedDataParallel)):
+        model = model.module
+    load_net = torch.load(model_path, map_location=lambda storage, loc: storage)
+    param_key = 'params' #RCAN
+    if param_key is not None:
+        if param_key not in load_net and 'params' in load_net:
+            param_key = 'params'
+            logger.info('Loading: params_ema does not exist, use params.')
+        load_net = load_net[param_key]
+    model.load_state_dict(load_net, strict=True)
+    # remove unnecessary 'module.'
+    for k, v in deepcopy(load_net).items():
+        if k.startswith('module.'):
+            load_net[k[7:]] = v
+            load_net.pop(k)
+    model.load_state_dict(load_net, strict=True)
     model.eval()
     for k, v in model.named_parameters():
         v.requires_grad = False
     model = model.to(device)
-
     # number of parameters
     number_parameters = sum(map(lambda x: x.numel(), model.parameters()))
     logger.info('Params number: {}'.format(number_parameters))
