@@ -26,6 +26,15 @@ Jointly with NTIRE workshop we have a challenge on Efficient Super-Resolution, t
 
 Run [test_demo.py](test_demo.py) to test the model
 
+## Light-Reweighting Feature Separatable Network (LRFSN)
+* Average PSNR on validation data: 29.01 dB
+
+* Average inference time (RTX 3090) on validation data: 0.04 second 
+
+    Note: The best average inference time among three trials is selected.
+
+Run [test_demo.py](test_demo.py) to test the model
+
 ## How to use the code during test phase.
 
 1. `git clone https://github.com/ofsoundof/IMDN`
