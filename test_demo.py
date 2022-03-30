@@ -5,7 +5,7 @@ from copy import deepcopy
 import torch
 from utils import utils_logger
 from utils import utils_image as util
-from models.rfdnfinal_arch import RFDNFINAL
+from models.rfdnfinalB5_arch import RFDNFINALB5
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 
 def main():
@@ -28,8 +28,8 @@ def main():
     # --------------------------------
     # load model
     # --------------------------------
-    model_path = os.path.join('model_zoo', 'net_g_latest.pth')
-    model = RFDNFINAL(num_in_ch=3, num_feat=50, num_block=6, num_out_ch=3, upscale=4,
+    model_path = os.path.join('model_zoo', 'final.pth')
+    model = RFDNFINALB5(num_in_ch=3, num_feat=48, num_block=5, num_out_ch=3, upscale=4,
                  conv='BSConvU', upsampler='pixelshuffledirect')
     if isinstance(model, (DataParallel, DistributedDataParallel)):
         model = model.module

@@ -4,12 +4,10 @@ This repository is used to implement all upsamplers(only x4) and tools for Effic
     LI Zehyuan from SIAT
     LIU yingqi from SIAT
 '''
-
-from functools import partial
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
+from basicsr.utils.registry import ARCH_REGISTRY
 
 
 class UpsampleOneStep(nn.Sequential):
@@ -172,7 +170,7 @@ class RFDB(nn.Module):
         out_fused = out_fused.permute(0, 2, 3, 1) * self.cw
         out_fused = self.conv_out(out_fused)
 
-        return out_fused.permute(0, 3, 1, 2)
+        return out_fused.permute(0, 3, 1, 2) + input
 
 
 def make_layer(block, n_layers):
@@ -182,13 +180,15 @@ def make_layer(block, n_layers):
     return nn.Sequential(*layers)
 
 
-class RFDNFINAL(nn.Module):
+@ARCH_REGISTRY.register()
+class RFDNFINALB5(nn.Module):
     def __init__(self, num_in_ch=3, num_feat=50, num_block=4, num_out_ch=3, upscale=4,
                  conv='BSConvU', upsampler='pixelshuffledirect', p=0.25):
-        super(RFDNFINAL, self).__init__()
+        super(RFDNFINALB5, self).__init__()
         kwargs = {'padding': 1}
         if conv == 'BSConvS':
             kwargs = {'p': p}
+        print(conv)
         if conv == 'BSConvU':
             self.conv = BSConvU
         else:
@@ -202,13 +202,14 @@ class RFDNFINAL(nn.Module):
         self.B3 = RFDB(in_channels=num_feat, out_channels=num_feat, conv=self.conv, p=p)
         self.B4 = RFDB(in_channels=num_feat, out_channels=num_feat, conv=self.conv, p=p)
         self.B5 = RFDB(in_channels=num_feat, out_channels=num_feat, conv=self.conv, p=p)
-        self.B6 = RFDB(in_channels=num_feat, out_channels=num_feat, conv=self.conv, p=p)
+        # self.B6 = RFDB(in_channels=num_feat, out_channels=num_feat, conv=self.conv, p=p)
         # self.B7 = RFDB(in_channels=num_feat, conv=self.conv, p=p)
 
         self.c1 = nn.Linear(num_feat * num_block, num_feat)
         self.GELU = nn.GELU()
 
         self.c2 = self.conv(num_feat, num_feat, kernel_size=3, **kwargs)
+
 
         if upsampler == 'pixelshuffledirect':
             self.upsampler = PixelShuffleDirect(scale=upscale, num_feat=num_feat, num_out_ch=num_out_ch)
@@ -223,9 +224,9 @@ class RFDNFINAL(nn.Module):
         out_B3 = self.B3(out_B2)
         out_B4 = self.B4(out_B3)
         out_B5 = self.B5(out_B4)
-        out_B6 = self.B6(out_B5)
+        # out_B6 = self.B6(out_B5)
         # out_B7 = self.B7(out_B6)
-        trunk = torch.cat([out_B1, out_B2, out_B3, out_B4, out_B5, out_B6], dim=1)
+        trunk = torch.cat([out_B1, out_B2, out_B3, out_B4, out_B5], dim=1)
         out_B = self.c1(trunk.permute(0, 2, 3, 1))
         out_B = self.GELU(out_B.permute(0, 3, 1, 2))
         # print(out_B.shape)
